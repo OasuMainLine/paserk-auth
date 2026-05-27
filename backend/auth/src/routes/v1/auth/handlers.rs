@@ -16,7 +16,7 @@ use redis::AsyncTypedCommands;
 use shared::{extractors::ValidatedJson, responses::ApiResponse};
 
 use diesel::{
-    ExpressionMethods, SelectableHelper, WindowExpressionMethods,
+    ExpressionMethods, SelectableHelper,
     query_dsl::methods::{FilterDsl, SelectDsl},
 };
 
@@ -63,7 +63,6 @@ fn validate_password(password: &str) -> Result<(), ValidationError> {
     }
 }
 
-#[axum::debug_handler]
 pub async fn sign_up_user(
     cookie: CookieManager,
     Database(mut db): Database,
