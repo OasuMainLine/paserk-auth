@@ -1,0 +1,16 @@
+[workspace]
+members = ["backend/auth", "backend/shared", "backend/resource_server"]
+
+[workspace.dependencies]
+serde = { version = "1.0.228", features = ["derive"] }
+axum = { version = "0.8.9", features = ["macros"] }
+thiserror = "2.0.18"
+anyhow = "1.0.102"
+diesel = { version = "2.3.9", features = ["chrono", "serde_json"] }
+diesel-async = { version = "0.9.0", features = ["postgres", "deadpool"] }
+dotenvy = "0.15.7"
+envy = "0.4.2"
+tokio = "1"
+log = "0.4.29"
+serde_json = "1.0"
+validator = { version = "0.16", features = ["derive"] }

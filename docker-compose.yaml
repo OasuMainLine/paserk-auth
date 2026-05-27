@@ -1,0 +1,70 @@
+version: "3.8"
+
+services:
+  traefik:
+    image: traefik:v2.10
+    container_name: traefik
+    restart: unless-stopped
+    command:
+      - --api.insecure=true
+      - --api.dashboard=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_acme:/acme
+    networks:
+      - web
+      - backend
+
+  db:
+    image: postgres:14
+    container_name: paserk_test_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: paserk_user
+      POSTGRES_PASSWORD: paserk_pass
+      POSTGRES_DB: postgres
+    volumes:
+      - paserk_db_data:/var/lib/postgresql/data
+      - ./bin/db:/docker-entrypoint-initdb.d
+
+    ports:
+      - "5430:5432"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  auth-redis:
+    image: redis:7-alpine
+    container_name: auth-redis
+    restart: unless-stopped
+    volumes:
+      - auth_redis_data:/data
+    ports:
+      - "6380:6379"
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  paserk_db_data:
+  auth_redis_data:
+  traefik_acme:
+
+networks:
+  web:
+  backend:

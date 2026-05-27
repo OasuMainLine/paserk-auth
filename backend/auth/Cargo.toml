@@ -1,0 +1,49 @@
+[package]
+name = "auth"
+version = "0.1.0"
+edition = "2024"
+default-run = "auth"
+
+[[bin]]
+name = "scheduler"
+path = "src/jobs/bin/scheduler.rs"
+
+[dependencies]
+diesel.workspace = true
+diesel-async.workspace = true
+anyhow.workspace = true
+axum.workspace = true
+shared = { version = "0.1.0", path = "../shared" }
+envy.workspace = true
+log.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["full"] }
+tower = "0.5.3"
+tower-http = { version = "0.6.10", features = ["trace", "cors", "timeout"] }
+tracing-subscriber = "0.3.23"
+rusty_paseto = { version = "0.10.0", features = [
+    "batteries_included",
+    "v4_local",
+    "paserk",
+] }
+validator.workspace = true
+chrono = "0.4.44"
+tokio-task-scheduler = "1.0.0"
+redis = { version = "1.2.1", features = ["tokio-comp", "json"] }
+ed25519-dalek = { version = "3.0.0-pre.7", features = [
+    "alloc",
+    "pem",
+    "rand_core",
+    "pkcs8",
+] }
+rand = { version = "0.10.1" }
+async-trait = "0.1.89"
+uuid = { version = "1.23.1", features = ["v4"] }
+apalis = { version = "0.7", features = ["limit"] }
+apalis-redis = { version = "0.7" }
+apalis-cron = { version = "0.7" }
+axum-cookie = { version = "0.3.0" }
+zxcvbn = "3.1.1"
+argon2 = { version = "0.5.3", features = ["rand", "std"] }

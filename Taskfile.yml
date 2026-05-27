@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: "3"
+dotenv:
+  - ".env"
+tasks:
+  dev:auth:
+    desc: "Run the authentication server"
+    cmds:
+      - cargo run -p auth
+  start:auth:scheduler:
+    desc: "Start the auth job scheduler"
+    cmds:
+      - cargo run -p auth --bin scheduler
+  diesel:auth:
+    dir: "./backend/auth"
+    env:
+      DATABASE_URL: "{{.AUTH_DATABASE_URL}}"
+    cmds:
+      - diesel {{.CLI_ARGS}}
