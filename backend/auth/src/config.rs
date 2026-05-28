@@ -11,6 +11,8 @@ pub struct Config {
 
     pub auth_refresh_token_max_age: i64,
     pub auth_access_token_max_age: i64,
+
+    pub auth_service_port: i64,
 }
 
 pub const SIGNING_REDIS_KEY: &'static str = "signing_key";

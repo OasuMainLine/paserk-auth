@@ -9,5 +9,6 @@ pub fn router(app_state: Arc<AppState>) -> Router<Arc<AppState>> {
         .route("/", get(handlers::get_root))
         .route("/health", get(handlers::get_health))
         .route("/health/db", get(handlers::get_health_db))
+        .fallback(handlers::get_not_found_fallback)
         .with_state(app_state)
 }

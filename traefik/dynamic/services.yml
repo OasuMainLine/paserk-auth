@@ -1,0 +1,23 @@
+http:
+  routers:
+    auth-service:
+      rule: "PathPrefix(`/auth`)"
+      entryPoints:
+        - web
+      service: auth-service
+
+    resource-service:
+      rule: "PathPrefix(`/resource`)"
+      entryPoints:
+        - web
+      service: resource-service
+  services:
+    auth-service:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:3001"
+
+    resource-service:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:3002"

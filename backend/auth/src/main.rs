@@ -40,16 +40,20 @@ async fn main() {
 
     let services = ServiceBuilder::new().layer(TraceLayer::new_for_http());
     let app = Router::new()
-        .merge(routes::root::router(app_state.clone()))
-        .merge(routes::v1::router(app_state.clone()))
+        .nest(
+            "/auth",
+            Router::new()
+                .merge(routes::root::router(app_state.clone()))
+                .nest("/v1", routes::v1::router(app_state.clone())),
+        )
         .layer(CookieLayer::default())
         .layer(services)
         .with_state(app_state.clone());
-
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
+    let address = format!("0.0.0.0:{}", &config.auth_service_port);
+    let listener = tokio::net::TcpListener::bind(&address)
         .await
         .expect("Error initializing tcp listener");
 
-    println!("Starting server at {} 🚀🚀", "127.0.0.1:3000");
+    println!("Starting server at {} 🚀🚀", &address);
     axum::serve(listener, app).await.expect("Runtime error");
 }

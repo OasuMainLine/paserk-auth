@@ -64,6 +64,12 @@ impl ApiSuccess {
 }
 
 impl ApiFail {
+    pub fn not_found(data: Value) -> Self {
+        Self {
+            data,
+            code: StatusCode::NOT_FOUND,
+        }
+    }
     pub fn bad_request(data: Value) -> Self {
         Self {
             data,

@@ -1,4 +1,4 @@
-use axum::http::StatusCode;
+use axum::http::{StatusCode, Uri};
 use axum::response::{IntoResponse, Result};
 
 use diesel::sql_types::Integer;
@@ -6,7 +6,7 @@ use diesel::{IntoSql, select};
 use diesel_async::RunQueryDsl;
 use log::info;
 use serde_json::json;
-use shared::responses::ApiSuccess;
+use shared::responses::{ApiFail, ApiSuccess};
 
 use crate::errors::AuthServiceError;
 use crate::utils::extractors::Database;
@@ -33,4 +33,11 @@ pub async fn get_health_db(Database(mut db): Database) -> Result<impl IntoRespon
 pub async fn get_root() -> (StatusCode, ()) {
     info!("get_root request");
     (StatusCode::NO_CONTENT, ())
+}
+
+pub async fn get_not_found_fallback(uri: Uri) -> impl IntoResponse {
+    ApiFail::not_found(json!({
+        "reason": "route not found",
+        "uri": uri.to_string()
+    }))
 }
