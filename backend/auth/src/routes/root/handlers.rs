@@ -6,14 +6,14 @@ use diesel::{IntoSql, select};
 use diesel_async::RunQueryDsl;
 use log::info;
 use serde_json::json;
-use shared::responses::ApiResponse;
+use shared::responses::ApiSuccess;
 
 use crate::errors::AuthServiceError;
 use crate::utils::extractors::Database;
 
 pub async fn get_health() -> Result<impl IntoResponse> {
     info!("get_health request");
-    Ok(ApiResponse::new())
+    Ok(ApiSuccess::empty())
 }
 
 pub async fn get_health_db(Database(mut db): Database) -> Result<impl IntoResponse> {
@@ -25,11 +25,9 @@ pub async fn get_health_db(Database(mut db): Database) -> Result<impl IntoRespon
         .map_err(AuthServiceError::from)
         .map_err(AuthServiceError::from)?;
 
-    ApiResponse::new()
-        .data(json!({
-            "message": "Database operational"
-        }))
-        .into()
+    Ok(ApiSuccess::ok(json!({
+        "message": "Database operational"
+    })))
 }
 
 pub async fn get_root() -> (StatusCode, ()) {

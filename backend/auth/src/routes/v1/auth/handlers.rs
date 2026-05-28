@@ -13,7 +13,10 @@ use axum::{
 };
 use axum_cookie::CookieManager;
 use redis::AsyncTypedCommands;
-use shared::{extractors::ValidatedJson, responses::ApiResponse};
+use shared::{
+    extractors::ValidatedJson,
+    responses::{ApiError, ApiSuccess},
+};
 
 use diesel::{
     ExpressionMethods, SelectableHelper,
@@ -136,12 +139,7 @@ pub async fn sign_up_user(
         true,
         "*",
     ));
-
-    ApiResponse::new()
-        .data(json!({
-            "user": user,
-        }))
-        .into()
+    Ok(ApiSuccess::created(json!({"user": user})))
 }
 
 pub async fn logout_user(Session(_): Session, cookie: CookieManager) -> Result<impl IntoResponse> {
@@ -151,11 +149,7 @@ pub async fn logout_user(Session(_): Session, cookie: CookieManager) -> Result<i
 }
 
 pub async fn verify_user(Session(user): Session) -> Result<impl IntoResponse> {
-    ApiResponse::new()
-        .data(json!({
-            "user": user
-        }))
-        .into()
+    Ok(ApiSuccess::created(json!({"user": user})))
 }
 
 #[derive(Deserialize, Validate, Debug)]
@@ -182,18 +176,10 @@ pub async fn sign_in_user(
             AuthServiceError::UnauthorizedError(Some(String::from("Invalid email or password")))
         })?;
 
-    let hash = String::from_utf8(user.password_hash.clone()).map_err(|_| {
-        ApiResponse::new()
-            .error("Failed to parse request")
-            .status_code(StatusCode::INTERNAL_SERVER_ERROR)
-            .into_response()
-    })?;
-    let hash = PasswordHash::try_from(hash.as_str()).map_err(|_| {
-        ApiResponse::new()
-            .error("Failed to parse request")
-            .status_code(StatusCode::INTERNAL_SERVER_ERROR)
-            .into_response()
-    })?;
+    let hash = String::from_utf8(user.password_hash.clone())
+        .map_err(|_| ApiError::server_error("Failed to parse request"))?;
+    let hash = PasswordHash::try_from(hash.as_str())
+        .map_err(|_| ApiError::server_error("Failed to parse request"))?;
 
     let argon2 = Argon2::default();
     if argon2
@@ -230,11 +216,8 @@ pub async fn sign_in_user(
         true,
         "*",
     ));
-    ApiResponse::new()
-        .data(json!({
-            "user": user,
-        }))
-        .into()
+
+    Ok(ApiSuccess::ok(json!({"user": user})))
 }
 
 pub async fn get_public_keys(State(state): State<Arc<AppState>>) -> Result<impl IntoResponse> {
@@ -257,21 +240,15 @@ pub async fn get_public_keys(State(state): State<Arc<AppState>>) -> Result<impl 
     drop(keys_iter);
     let mut response: Vec<serde_json::Value> = Vec::new();
     for key in keys {
-        let kid = key.split(":").last().ok_or(
-            ApiResponse::new()
-                .error("Could not find kid for existing verifying_key")
-                .status_code(StatusCode::INTERNAL_SERVER_ERROR),
-        )?;
+        let kid = key.split(":").last().ok_or(ApiError::server_error(
+            "Could not find kid for existing verifying_key",
+        ))?;
 
         let paserk_key = redis
             .hget(&key, "key")
             .await
             .map_err(AuthServiceError::from)?
-            .ok_or(
-                ApiResponse::new()
-                    .error("Could not find verifying_key value")
-                    .status_code(StatusCode::INTERNAL_SERVER_ERROR),
-            )?;
+            .ok_or(ApiError::server_error("Could not find verifying_key value"))?;
 
         response.push(json!({
             "kid": kid,

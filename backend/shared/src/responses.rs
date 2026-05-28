@@ -1,10 +1,10 @@
 //! Responses file
 //! Stores common api statuses and response related utilities
-
+//! For this project we use JSend: https://github.com/omniti-labs/jsend
 use axum::{
     Json,
     http::StatusCode,
-    response::{IntoResponse, Response, Result},
+    response::{IntoResponse, Response},
 };
 use serde_json::{Value, json};
 
@@ -25,82 +25,124 @@ impl APIStatus {
 }
 
 #[derive(Debug, Clone)]
-pub struct ApiResponse {
-    pub data: Option<Value>,
+pub struct ApiSuccess {
     pub code: StatusCode,
-    pub status: APIStatus,
-    pub message: Option<String>,
+    pub data: Value,
 }
 
-impl Default for ApiResponse {
-    fn default() -> Self {
+#[derive(Debug, Clone)]
+pub struct ApiFail {
+    pub code: StatusCode,
+    pub data: Value,
+}
+
+#[derive(Debug, Clone)]
+pub struct ApiError {
+    pub code: StatusCode,
+    pub message: String,
+    pub data: Option<Value>,
+}
+
+impl ApiSuccess {
+    pub fn ok(data: Value) -> Self {
         Self {
-            data: None,
+            data,
             code: StatusCode::OK,
-            status: APIStatus::SUCCESS,
-            message: None,
+        }
+    }
+    /// Alias for `ApiSuccess::ok(json!({}))`
+    pub fn empty() -> Self {
+        Self::ok(json!({}))
+    }
+
+    pub fn created(data: Value) -> Self {
+        Self {
+            data,
+            code: StatusCode::CREATED,
         }
     }
 }
 
-impl IntoResponse for ApiResponse {
-    fn into_response(self) -> axum::response::Response {
-        let body = match self.status {
-            APIStatus::SUCCESS | APIStatus::FAIL => Json(json!({
-                "status": self.status.as_str(),
+impl ApiFail {
+    pub fn bad_request(data: Value) -> Self {
+        Self {
+            data,
+            code: StatusCode::BAD_REQUEST,
+        }
+    }
+    pub fn unprocessable_entity(data: Value) -> Self {
+        Self {
+            data,
+            code: StatusCode::UNPROCESSABLE_ENTITY,
+        }
+    }
+
+    pub fn unauthorized(data: Value) -> Self {
+        Self {
+            data,
+            code: StatusCode::UNAUTHORIZED,
+        }
+    }
+    pub fn forbidden(data: Value) -> Self {
+        Self {
+            data,
+            code: StatusCode::FORBIDDEN,
+        }
+    }
+}
+
+impl ApiError {
+    pub fn server_error(message: &str) -> Self {
+        Self {
+            code: StatusCode::INTERNAL_SERVER_ERROR,
+            data: None,
+            message: message.to_string(),
+        }
+    }
+    pub fn server_error_with_data(data: Value, message: &str) -> Self {
+        Self {
+            code: StatusCode::INTERNAL_SERVER_ERROR,
+            data: Some(data),
+            message: message.to_string(),
+        }
+    }
+}
+
+impl IntoResponse for ApiSuccess {
+    fn into_response(self) -> Response {
+        return (
+            self.code,
+            Json(json!({
+                "status": APIStatus::SUCCESS.as_str(),
                 "data": self.data
             })),
-            APIStatus::ERROR => Json(json!({
-                "status": self.status.as_str(),
-                "message": self.message,
-                "data": self.data,
+        )
+            .into_response();
+    }
+}
+
+impl IntoResponse for ApiFail {
+    fn into_response(self) -> Response {
+        return (
+            self.code,
+            Json(json!({
+                "status": APIStatus::FAIL.as_str(),
+                "data": self.data
             })),
-        };
-
-        (self.code, body).into_response()
-    }
-}
-impl Into<Result<Response>> for ApiResponse {
-    fn into(self) -> Result<Response> {
-        match self.status {
-            APIStatus::SUCCESS => Ok(self.into_response()),
-            _ => Err(self.into_response().into()),
-        }
+        )
+            .into_response();
     }
 }
 
-impl ApiResponse {
-    pub fn new() -> Self {
-        Self {
-            ..Default::default()
-        }
-    }
-
-    pub fn success(mut self) -> Self {
-        self.status = APIStatus::SUCCESS;
-
-        self
-    }
-
-    pub fn fail(mut self) -> Self {
-        self.status = APIStatus::FAIL;
-        self
-    }
-    pub fn error(mut self, message: &str) -> Self {
-        self.status = APIStatus::ERROR;
-        self.message = Some(message.to_string());
-
-        self
-    }
-
-    pub fn data(mut self, data: Value) -> Self {
-        self.data = Some(data);
-
-        self
-    }
-
-    pub fn status_code(mut self, code: StatusCode) -> Self {
-        self.code = code;
-        self
+impl IntoResponse for ApiError {
+    fn into_response(self) -> Response {
+        return (
+            self.code,
+            Json(json!({
+                "status": APIStatus::ERROR.as_str(),
+                "data": self.data
+            })),
+        )
+            .into_response();
     }
 }
