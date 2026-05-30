@@ -2,6 +2,11 @@
 members = ["backend/auth", "backend/shared", "backend/resource_server"]
 
 [workspace.dependencies]
+rusty_paseto = { version = "0.10.0", features = [
+    "batteries_included",
+    "v4_local",
+    "paserk",
+] }
 serde = { version = "1.0.228", features = ["derive"] }
 axum = { version = "0.8.9", features = ["macros"] }
 thiserror = "2.0.18"

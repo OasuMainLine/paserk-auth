@@ -1,3 +1,32 @@
-fn main() {
-    println!("Hello, world!");
+use std::sync::Arc;
+
+use axum::Router;
+use resource_server::{config::Config, routes, state::AppState};
+use shared::env::load_env;
+use tower::ServiceBuilder;
+use tower_http::trace::TraceLayer;
+
+#[tokio::main]
+async fn main() {
+    load_env().expect("Error loading env variables");
+
+    let config = envy::from_env::<Config>().expect("Error loading configuration");
+    tracing_subscriber::fmt::init();
+    let app_state = Arc::new(AppState {
+        config: config.clone(),
+    });
+    let services = ServiceBuilder::new().layer(TraceLayer::new_for_http());
+    let app = Router::new()
+        .merge(routes::router(app_state.clone()))
+        .layer(services)
+        .with_state(app_state.clone());
+
+    let address = format!("0.0.0.0:{}", &config.resource_service_port);
+
+    let listener = tokio::net::TcpListener::bind(&address)
+        .await
+        .expect("Error initializing tcp listener");
+
+    println!("Starting server at {} 🚀🚀", &address);
+    axum::serve(listener, app).await.expect("Runtime error");
 }

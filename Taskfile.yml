@@ -9,6 +9,10 @@ tasks:
     desc: "Run the authentication server"
     cmds:
       - cargo run -p auth
+  dev:resource:
+    desc: "Run the resource server"
+    cmds:
+      - cargo run -p resource_server
   start:auth:scheduler:
     desc: "Start the auth job scheduler"
     cmds:

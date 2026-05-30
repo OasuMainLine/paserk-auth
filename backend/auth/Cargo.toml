@@ -19,15 +19,11 @@ log.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+rusty_paseto.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tower = "0.5.3"
 tower-http = { version = "0.6.10", features = ["trace", "cors", "timeout"] }
 tracing-subscriber = "0.3.23"
-rusty_paseto = { version = "0.10.0", features = [
-    "batteries_included",
-    "v4_local",
-    "paserk",
-] }
 validator.workspace = true
 chrono = "0.4.44"
 redis = { version = "1.2.1", features = ["tokio-comp", "json"] }

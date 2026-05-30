@@ -38,7 +38,10 @@ async fn main() {
         config: config.clone(),
     });
 
-    let services = ServiceBuilder::new().layer(TraceLayer::new_for_http());
+    let services = ServiceBuilder::new()
+        .layer(TraceLayer::new_for_http())
+        .layer(CookieLayer::default());
+
     let app = Router::new()
         .nest(
             "/auth",
@@ -46,7 +49,6 @@ async fn main() {
                 .merge(routes::root::router(app_state.clone()))
                 .nest("/v1", routes::v1::router(app_state.clone())),
         )
-        .layer(CookieLayer::default())
         .layer(services)
         .with_state(app_state.clone());
     let address = format!("0.0.0.0:{}", &config.auth_service_port);

@@ -4,3 +4,17 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+shared = { version = "0.1.0", path = "../shared" }
+anyhow.workspace = true
+envy.workspace = true
+log.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+rusty_paseto.workspace = true
+tokio = { workspace = true, features = ["full"] }
+validator.workspace = true
+axum.workspace = true
+tower = "0.5.3"
+tower-http = { version = "0.6.10", features = ["trace", "cors", "timeout"] }
+tracing-subscriber = "0.3.23"
