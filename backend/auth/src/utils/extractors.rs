@@ -12,7 +12,9 @@ use log::error;
 use crate::{
     errors::AuthServiceError,
     state::AppState,
-    utils::paseto::{UserClaims, extract_kid_from_token, get_verifier_key_for, verify_token},
+    utils::paseto::{
+        UserClaims, extract_kid_from_token, get_verifier_key_for, verify_access_token,
+    },
 };
 
 pub struct Database(pub Object<AsyncPgConnection>);
@@ -47,24 +49,26 @@ impl FromRequestParts<Arc<AppState>> for Session {
             .await
             .expect("Error accessing cookies");
 
-        let auth_cookie = cookie.get("x-auth-access-token").ok_or(
+        let auth_cookie = cookie.get("x-auth-access-token").ok_or_else(|| {
             AuthServiceError::UnauthorizedError(Some(String::from(
                 "Authorization cookie not present",
             )))
-            .into_response(),
-        )?;
+            .into_response()
+        })?;
 
-        let kid = extract_kid_from_token(auth_cookie.value()).ok_or(
+        let kid = extract_kid_from_token(auth_cookie.value()).ok_or_else(|| {
             AuthServiceError::UnauthorizedError(Some(String::from("Invalid or expired token")))
-                .into_response(),
-        )?;
+                .into_response()
+        })?;
 
-        let public_key = get_verifier_key_for(&kid, &state.redis).await.ok_or(
-            AuthServiceError::UnauthorizedError(Some(String::from("Invalid or expired token")))
-                .into_response(),
-        )?;
+        let public_key = get_verifier_key_for(&kid, &state.redis)
+            .await
+            .ok_or_else(|| {
+                AuthServiceError::UnauthorizedError(Some(String::from("Invalid or expired token")))
+                    .into_response()
+            })?;
 
-        let claims = verify_token(auth_cookie.value(), &public_key).map_err(|e| {
+        let claims = verify_access_token(auth_cookie.value(), &public_key).map_err(|e| {
             error!("Error validating token: {}", e);
             AuthServiceError::UnauthorizedError(Some(String::from("Invalid or expired token")))
                 .into_response()

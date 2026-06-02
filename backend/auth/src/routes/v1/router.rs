@@ -13,6 +13,7 @@ pub fn router(app_state: Arc<AppState>) -> Router<Arc<AppState>> {
         .route("/sign-in", post(handlers::sign_in_user))
         .route("/me", get(handlers::verify_user))
         .route("/logout", post(handlers::logout_user))
+        .route("/refresh", post(handlers::refresh_token))
         .route("/.well-known/paserk.json", get(handlers::get_public_keys))
         .with_state(app_state)
 }

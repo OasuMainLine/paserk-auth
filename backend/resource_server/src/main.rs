@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use axum::Router;
 use resource_server::{config::Config, routes, state::AppState};
-use shared::env::load_env;
+use shared::{env::load_env, paserk::PaserkClient};
+use tokio::sync::OnceCell;
 use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
 
@@ -11,10 +12,13 @@ async fn main() {
     load_env().expect("Error loading env variables");
 
     let config = envy::from_env::<Config>().expect("Error loading configuration");
+    let paserk_client = PaserkClient::new(&config.resource_paserk_url);
     tracing_subscriber::fmt::init();
     let app_state = Arc::new(AppState {
         config: config.clone(),
+        paserk_client: OnceCell::const_new_with(paserk_client),
     });
+
     let services = ServiceBuilder::new().layer(TraceLayer::new_for_http());
     let app = Router::new()
         .merge(routes::router(app_state.clone()))

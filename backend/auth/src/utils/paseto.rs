@@ -3,7 +3,8 @@ use rusty_paseto::{
     paserk::{K4, PaserkPublic, PaserkSecret},
     prelude::*,
 };
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use shared::serde_customs::FlexibleNumber;
 
 use crate::config::{AUDIENCE, ISSUER, SIGNING_REDIS_KEY, VERIFYING_REDIS_KEY};
 
@@ -44,23 +45,18 @@ fn sign_token<'a>(
 
 #[derive(Serialize, Deserialize)]
 pub struct UserClaims {
-    #[serde(alias = "sub", deserialize_with = "deserialize_sub")]
-    pub id: i32,
+    #[serde(alias = "sub")]
+    pub id: FlexibleNumber,
     pub username: String,
     pub email: String,
 }
-fn deserialize_sub<'de, D>(deserializer: D) -> Result<i32, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let sub = String::deserialize(deserializer)?;
-    let sub = sub
-        .trim()
-        .parse::<i32>()
-        .map_err(serde::de::Error::custom)?;
 
-    Ok(sub)
+#[derive(Serialize, Deserialize)]
+pub struct RefreshUserClaims {
+    #[serde(alias = "sub")]
+    pub id: FlexibleNumber,
 }
+
 pub fn sign_access_token_for(
     claims: UserClaims,
     secret_key: &Key<64>,
@@ -86,16 +82,50 @@ pub fn sign_refresh_token_for(
     sign_token(secret_key, token, &pid)
 }
 
-pub fn verify_token(token: &str, public_key: &Key<32>) -> Result<UserClaims, rusty_paseto::Error> {
+fn verify_token<T: DeserializeOwned>(
+    token: &str,
+    public_key: &Key<32>,
+) -> Result<T, rusty_paseto::Error> {
     let verifier_key = PasetoAsymmetricPublicKey::<V4, Public>::from(public_key);
     let pid = verifier_key.paserk_id();
-    let claims: UserClaims = PasetoParser::<V4, Public>::default()
+    let claims: T = PasetoParser::<V4, Public>::default()
+        .validate_claim(ExpirationClaim::default(), &|key, value| {
+            if key != "exp" {
+                return Err(PasetoClaimError::Unexpected(key.to_string()));
+            }
+            let val = value
+                .as_str()
+                .ok_or(PasetoClaimError::Unexpected(key.to_string()))?;
+
+            let datetime = chrono::DateTime::parse_from_rfc3339(val).map_err(|_| {
+                PasetoClaimError::CustomValidation("Expiration claim is invalid".to_string())
+            })?;
+            let now = chrono::Utc::now();
+
+            if datetime < now {
+                return Err(PasetoClaimError::CustomValidation(
+                    "Token expired".to_string(),
+                ));
+            }
+            Ok(())
+        })
         .set_footer(Footer::from(pid.as_str()))
         .parse_into(token, &verifier_key)
         .map_err(rusty_paseto::Error::from)?;
     Ok(claims)
 }
-
+pub fn verify_access_token(
+    token: &str,
+    public_key: &Key<32>,
+) -> Result<UserClaims, rusty_paseto::Error> {
+    verify_token(token, public_key)
+}
+pub fn verify_refresh_token(
+    token: &str,
+    public_key: &Key<32>,
+) -> Result<RefreshUserClaims, rusty_paseto::Error> {
+    verify_token(token, public_key)
+}
 pub async fn get_signing_key_from_redis(redis: &Client) -> Key<64> {
     let mut conn = redis.get_multiplexed_async_connection().await.unwrap();
     let signing_key: String = conn.get(&SIGNING_REDIS_KEY).await.unwrap();

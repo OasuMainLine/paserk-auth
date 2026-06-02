@@ -48,7 +48,7 @@ impl Into<UserClaims> for PartialUser {
     fn into(self) -> UserClaims {
         UserClaims {
             email: self.email,
-            id: self.id,
+            id: self.id.into(),
             username: self.username,
         }
     }

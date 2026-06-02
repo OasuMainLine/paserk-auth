@@ -19,3 +19,4 @@ tokio = "1"
 log = "0.4.29"
 serde_json = "1.0"
 validator = { version = "0.16", features = ["derive"] }
+axum-cookie = { version = "0.3.0" }

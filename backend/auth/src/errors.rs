@@ -20,6 +20,9 @@ pub enum AuthServiceError {
 
     #[error("Unauthorized")]
     UnauthorizedError(Option<String>),
+
+    #[error("User with given email already exists")]
+    ExistingUserError,
 }
 
 impl IntoResponse for AuthServiceError {
@@ -46,6 +49,10 @@ impl IntoResponse for AuthServiceError {
             | Self::DieselPoolError(_)
             | Self::PasetoError(_)
             | Self::RedisError(_) => ApiError::server_error(&self.to_string()).into_response(),
+            Self::ExistingUserError => ApiFail::unprocessable_entity(json!({
+                "message": &self.to_string()
+            }))
+            .into_response(),
             Self::ForbiddenError(ref msg) => ApiFail::forbidden(json!({
                 "message": msg.clone().unwrap_or(self.to_string())
             }))

@@ -18,3 +18,4 @@ axum.workspace = true
 tower = "0.5.3"
 tower-http = { version = "0.6.10", features = ["trace", "cors", "timeout"] }
 tracing-subscriber = "0.3.23"
+axum-cookie.workspace = true

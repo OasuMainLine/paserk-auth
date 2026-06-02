@@ -4,7 +4,7 @@ use axum::response::{IntoResponse, Result};
 use diesel::sql_types::Integer;
 use diesel::{IntoSql, select};
 use diesel_async::RunQueryDsl;
-use log::info;
+use log::{info, warn};
 use serde_json::json;
 use shared::responses::{ApiFail, ApiSuccess};
 
@@ -36,6 +36,7 @@ pub async fn get_root() -> (StatusCode, ()) {
 }
 
 pub async fn get_not_found_fallback(uri: Uri) -> impl IntoResponse {
+    warn!("Route not found {uri}");
     ApiFail::not_found(json!({
         "reason": "route not found",
         "uri": uri.to_string()

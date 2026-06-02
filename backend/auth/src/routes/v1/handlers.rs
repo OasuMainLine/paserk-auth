@@ -15,12 +15,14 @@ use axum_cookie::CookieManager;
 use redis::AsyncTypedCommands;
 use shared::{
     extractors::ValidatedJson,
-    responses::{ApiError, ApiSuccess},
+    responses::{ApiError, ApiFail, ApiSuccess},
 };
 
 use diesel::{
-    ExpressionMethods, SelectableHelper,
-    query_dsl::methods::{FilterDsl, SelectDsl},
+    ExpressionMethods, IntoSql, SelectableHelper,
+    dsl::exists,
+    query_dsl::methods::{FilterDsl, FindDsl, SelectDsl},
+    select,
 };
 
 use diesel_async::RunQueryDsl;
@@ -35,11 +37,15 @@ use crate::{
     utils::{
         cookies::BaseCookie,
         extractors::{Database, Session},
-        paseto::{get_signing_key_from_redis, sign_access_token_for, sign_refresh_token_for},
+        paseto::{
+            extract_kid_from_token, get_signing_key_from_redis, get_verifier_key_for,
+            sign_access_token_for, sign_refresh_token_for, verify_refresh_token,
+        },
         passwords::{PasswordError, check_password},
     },
 };
 
+use log::error;
 #[derive(Deserialize, Validate)]
 pub struct SignUpUserSchema {
     #[validate(length(min = 1))]
@@ -73,6 +79,14 @@ pub async fn sign_up_user(
     ValidatedJson(payload): ValidatedJson<SignUpUserSchema>,
 ) -> Result<impl IntoResponse> {
     use crate::schema::users;
+    let exists = select(exists(users::table.filter(users::email.eq(&payload.email))))
+        .get_result::<bool>(&mut db)
+        .await
+        .map_err(AuthServiceError::from)?;
+
+    if exists {
+        return Err(AuthServiceError::ExistingUserError.into());
+    }
     let salt = SaltString::generate(&mut OsRng);
     let argon2 = Argon2::default();
 
@@ -220,6 +234,67 @@ pub async fn sign_in_user(
     Ok(ApiSuccess::ok(json!({"user": user})))
 }
 
+pub async fn refresh_token(
+    State(state): State<Arc<AppState>>,
+    Database(mut db): Database,
+    cookie: CookieManager,
+) -> Result<impl IntoResponse> {
+    use crate::schema::users;
+    let refresh_cookie = cookie.get("x-auth-refresh-token").ok_or(
+        ApiFail::unprocessable_entity(json!({"message": "Refresh token not found"}))
+            .into_response(),
+    )?;
+
+    let refresh_token = refresh_cookie.value();
+
+    let kid = extract_kid_from_token(refresh_token).ok_or(AuthServiceError::UnauthorizedError(
+        Some(String::from("Invalid or expired token")),
+    ))?;
+
+    let public_key = get_verifier_key_for(&kid, &state.redis).await.ok_or(
+        AuthServiceError::UnauthorizedError(Some(String::from("Invalid or expired token"))),
+    )?;
+
+    let claims = verify_refresh_token(refresh_token, &public_key).map_err(|e| {
+        error!("Error validating token: {}", e);
+        AuthServiceError::UnauthorizedError(Some(String::from("Invalid or expired token")))
+    })?;
+
+    let user = users::table
+        .find(*claims.id)
+        .select(PartialUser::as_select())
+        .get_result::<PartialUser>(&mut db)
+        .await
+        .map_err(|_| {
+            AuthServiceError::UnauthorizedError(Some(String::from("User does not exist")))
+        })?;
+
+    let secret_key = get_signing_key_from_redis(&state.redis).await;
+    let access_exp =
+        chrono::Utc::now() + chrono::Duration::minutes(state.config.auth_access_token_max_age);
+    let refresh_exp =
+        chrono::Utc::now() + chrono::Duration::minutes(state.config.auth_refresh_token_max_age);
+
+    let access_token = sign_access_token_for(user.clone().into(), &secret_key, access_exp)
+        .map_err(AuthServiceError::from)?;
+    let refresh_token = sign_refresh_token_for(user.clone().into(), &secret_key, refresh_exp)
+        .map_err(AuthServiceError::from)?;
+
+    cookie.add(BaseCookie::new(
+        "x-auth-access-token",
+        &access_token,
+        true,
+        "*",
+    ));
+    cookie.add(BaseCookie::new(
+        "x-auth-refresh-token",
+        &refresh_token,
+        true,
+        "*",
+    ));
+
+    Ok(ApiSuccess::empty())
+}
 pub async fn get_public_keys(State(state): State<Arc<AppState>>) -> Result<impl IntoResponse> {
     let mut redis = state
         .redis
