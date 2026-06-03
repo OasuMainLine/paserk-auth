@@ -15,6 +15,8 @@ pub enum PaserkClientError {
 
     #[error("Could not parse claims into given type")]
     ClaimParseError,
+    #[error("Given token is expired")]
+    ExpiredToken,
     #[error("Could not assess reason for the error")]
     UnknownError,
 
@@ -73,7 +75,13 @@ impl PaserkClient {
         let claims: T = PasetoParser::<V4, Public>::default()
             .set_footer(Footer::from(kid.as_str()))
             .parse_into(token, &verifier_key)
-            .map_err(|_| PaserkClientError::ClaimParseError)?;
+            .map_err(|e| {
+                if e.to_string() == "This token is expired" {
+                    PaserkClientError::ExpiredToken
+                } else {
+                    PaserkClientError::ClaimParseError
+                }
+            })?;
 
         Ok(claims)
     }

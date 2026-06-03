@@ -1,9 +1,10 @@
+use core::fmt;
 use std::ops::Deref;
 
 use serde::{Deserialize, Serialize, de::Visitor};
 
 /// A field that could be either a i32 number or a string
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, Debug)]
 pub struct FlexibleNumber(pub i32);
 
 impl Deref for FlexibleNumber {
@@ -56,5 +57,11 @@ impl<'de> Deserialize<'de> for FlexibleNumber {
 impl Into<FlexibleNumber> for i32 {
     fn into(self) -> FlexibleNumber {
         FlexibleNumber(self)
+    }
+}
+
+impl fmt::Display for FlexibleNumber {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }

@@ -2,10 +2,10 @@ use std::sync::Arc;
 
 use crate::state::AppState;
 use axum::{
-    RequestExt,
-    extract::{FromRequest, FromRequestParts, Request, State},
+    Extension,
+    extract::{FromRequestParts, Request, State},
     middleware::Next,
-    response::{IntoResponse, Response, Result},
+    response::{IntoResponse, Result},
 };
 use axum_cookie::CookieManager;
 use log::{error, warn};
@@ -17,7 +17,7 @@ use shared::{
     serde_customs::FlexibleNumber,
 };
 
-#[derive(Deserialize, Clone)]
+#[derive(Deserialize, Clone, Debug)]
 pub struct UserSession {
     #[serde(alias = "sub")]
     pub id: FlexibleNumber,
@@ -56,6 +56,12 @@ pub async fn session_middleware(
                 }))
                 .into());
             }
+            PaserkClientError::ExpiredToken => {
+                return Err(ApiFail::unauthorized(json!({
+                    "message": "User session expired"
+                }))
+                .into());
+            }
             error => {
                 error!("Fatal error authenticating user {}", error);
                 return Err(ApiError::server_error("Error authenticating").into());
@@ -70,3 +76,5 @@ pub async fn session_middleware(
     let response = next.run(request).await;
     Ok(response)
 }
+
+pub type Session = Extension<UserSession>;

@@ -6,7 +6,7 @@ use crate::{
     middlewares::session::session_middleware, routes::v1::todos::handlers, state::AppState,
 };
 
-pub async fn router(app_state: Arc<AppState>) -> Router<AppState> {
+pub fn router(app_state: Arc<AppState>) -> Router<Arc<AppState>> {
     let auth_router = Router::new()
         .route("/todos", get(handlers::get_todos))
         .layer(middleware::from_fn_with_state(

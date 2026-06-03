@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use axum::Router;
+use axum_cookie::CookieLayer;
 use resource_server::{config::Config, routes, state::AppState};
 use shared::{env::load_env, paserk::PaserkClient};
 use tokio::sync::OnceCell;
@@ -19,7 +20,9 @@ async fn main() {
         paserk_client: OnceCell::const_new_with(paserk_client),
     });
 
-    let services = ServiceBuilder::new().layer(TraceLayer::new_for_http());
+    let services = ServiceBuilder::new()
+        .layer(TraceLayer::new_for_http())
+        .layer(CookieLayer::default());
     let app = Router::new()
         .merge(routes::router(app_state.clone()))
         .layer(services)

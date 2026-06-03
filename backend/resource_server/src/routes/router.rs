@@ -2,10 +2,16 @@ use std::sync::Arc;
 
 use axum::Router;
 
-use crate::{routes::root, state::AppState};
+use crate::{
+    routes::{root, v1},
+    state::AppState,
+};
 
 pub fn router(state: Arc<AppState>) -> Router<Arc<AppState>> {
-    Router::new()
+    let app_router = Router::new()
         .merge(root::router(state.clone()))
-        .with_state(state)
+        .merge(v1::router(state.clone()))
+        .with_state(state);
+
+    Router::new().nest("/resource", app_router)
 }
