@@ -9,6 +9,22 @@ This repository demonstrates an implementation of [Paseto](https://paseto.io/) s
 
 Traditional JWTs provide flexibility, but that can come at the cost of security and increased cognitive overhead. Developers must decide which algorithms to use for signing and encryption. Paseto reduces this complexity by specifying secure algorithms by design.
 
+## Workflow
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Auth@{ "type": "control" } as Auth Service
+    participant Resource as Resource Service
+    User->>+Auth:  Signs in
+    Auth-->>User: Paserk signed token
+    User->>+Resource: Requests a Resource
+    Resource->>+Auth: Fetches the public paserk keys
+    Auth -->>+Resource: Paserk public keys
+    Resource->>+Resource: Validate user provided token with public keys
+    Resource-->>User: Protected Resource 
+```
+
 ## Includes
 
 - A scheduler for rotating PASERK keys.

@@ -87,14 +87,14 @@ impl PaserkClient {
     }
 
     async fn get_key_from_cache(&mut self, kid: &str) -> Result<String, PaserkClientError> {
-        let cache = self.cached_paserk_keys.read().await;
-        let key = cache.get(&kid.to_string());
+        let cache_read = self.cached_paserk_keys.read().await;
+        let key = cache_read.get(&kid.to_string());
 
         if let Some(key) = key {
             return Ok(key.to_string());
         }
-        drop(cache);
-        let mut cache = self.cached_paserk_keys.write().await;
+        let mut cache_write = self.cached_paserk_keys.write().await;
+        drop(cache_read);
 
         let client = reqwest::Client::new();
 
@@ -110,12 +110,12 @@ impl PaserkClient {
             PaserkClientError::UnknownError
         })?;
 
-        cache.clear();
+        cache_write.clear();
         keys_response.keys.into_iter().for_each(|k| {
-            cache.insert(k.kid, k.key);
+            cache_write.insert(k.kid, k.key);
         });
 
-        Ok(cache
+        Ok(cache_write
             .get(&kid.to_string())
             .ok_or(PaserkClientError::UnknownKey)?
             .clone())

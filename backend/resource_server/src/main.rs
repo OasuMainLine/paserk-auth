@@ -23,6 +23,7 @@ async fn main() {
     let services = ServiceBuilder::new()
         .layer(TraceLayer::new_for_http())
         .layer(CookieLayer::default());
+
     let app = Router::new()
         .merge(routes::router(app_state.clone()))
         .layer(services)
